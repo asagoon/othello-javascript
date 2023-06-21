@@ -1,24 +1,33 @@
-//定数
-//マスの状態
-SQUARE_STATUS_IS_OWNED = "01";
-SQUARE_STATUS_IS_OTHER = "02";
-SQUARE_STATUS_NOT_SELECTED = "09";
+    //定数
+    //マスの状態
+    SQUARE_STATUS_IS_OWNED = "01";
+    SQUARE_STATUS_IS_OTHER = "02";
+    SQUARE_STATUS_NOT_SELECTED = "09";
 
-// ターンを示す変数
-let isOddTurn = true; 
+    //トースターのオプション設定
+    toastr.options = {
+        tapToDismiss: false,
+        timeOut: 0,
+        extendedTimeOut: 0,
+    };
 
+    // ターンを示す変数
+    let isOddTurn = true; 
 
-//イベント
-$(function(){
-    //マス目にイベントを設定
-    $('.square').click(clickSquareEvent);
+    //イベント
+    $(function(){
+        //マス目にイベントを設定
+        $('.square').click(clickSquareEvent);
 
-    //盤面を初期化
-    initializeEvent();
-});
+        // 初期化ボタンを押したときのイベント
+        $("#btn-initialize").click(initializeEvent);
 
-//マス目クリックイベント
-function clickSquareEvent(){
+        //盤面を初期化
+        initializeEvent();
+    });
+
+    //マス目クリックイベント
+    function clickSquareEvent(){
     //クリックされたマス目のオブジェクトを取得
     let square = $(this);
 
@@ -27,18 +36,62 @@ function clickSquareEvent(){
         return;
     }
 
+    //ターン表示を削除
+    toastr.remove();
+    
     //マスの所有者を変更
     changeOwner(square);
     
+    //ゲーム終了
+    if(isGameEnd()){
+        toastEndMessage("Game is Over");
+        return;
+    }
+
+    if (isPass()) {
+        // エラーメッセージを表示する
+        toastr.remove();
+        toastr.error(getTurnString() + "There are no square to choose");
+
+        // 次のターンに変更する
+        changeTurn();
+        if (isPass()) {
+            toastr.error(getTurnString() + "There are no square to choose");
+            toastEndMessage("No more squares to choose");
+        } else {
+            setTimeout(function () {
+                toastr.info(getTurnString() + "'s Turn");
+            }, 1000);
+        }
+
+        return;
+    }
+
+    //次のターンを示すメッセージを表示
+    toastr.info(getTurnString() + "'s Turn");
 }
 
 //盤面初期化イベント
 function initializeEvent(){
+    //ターン表示を削除
+    toastr.remove();
+
+    //マスの属性をリセット
+    $(".square")
+       .removeClass("selected")
+       .text("")
+       .attr("data-owner", "");
+
+       // 奇数番手に戻す
+    isOddTurn = true;
     //初期値設定
     changeOwner(getTargetSquare(3, 4));
     changeOwner(getTargetSquare(3, 3));
     changeOwner(getTargetSquare(4, 3));
     changeOwner(getTargetSquare(4, 4));
+
+    //トースターを表示
+    toastr.info(getTurnString() + "'s Turn");
 }
 
 //内部関数
@@ -67,7 +120,7 @@ function getTurnString(){
         return 'white';
     }
 
-    // ターンを変更、//奇数のターンで黒、偶数のターンで白
+    // ターンを変更、奇数のターンで黒、偶数のターンで白
     function changeTurn(){
         isOddTurn = !isOddTurn;
 
@@ -489,7 +542,7 @@ function getPosOppositeLowerRight(row, col){
     }
 
     //対向先の有無を判定
-    for (targetRow++,targetCol++; targetRow <= 7, targetCol <= 0; targetRow++, targetCol++) {
+    for (targetRow++,targetCol++; targetRow <= 7, targetCol <= 7; targetRow++, targetCol++) {
         //マスの状態を取得
         let squareType = getSquareStatus(targetRow, targetCol);
         //選択されていないマスに到達した場合は終了する
@@ -536,5 +589,67 @@ function canSelect(square){
     if(square.hasClass('selected')){
         return false;
     }
-    return true;
+    let row = square.data("row");
+    let col = square.data("col");
+    if(getPosOppositeUpper(row, col) != null){
+        return true;
+    }
+    if(getPosOppositeLower(row, col) != null){
+        return true;
+    }
+    if(getPosOppositeLeft(row, col) != null){
+        return true;
+    }
+    if(getPosOppositeRight(row, col) != null){
+        return true;
+    }
+    if(getPosOppositeUpperLeft(row, col) != null){
+        return true;
+    }
+    if(getPosOppositeUpperRight(row, col) != null){
+        return true;
+    }
+    if(getPosOppositeLowerLeft(row, col) != null){
+        return true;
+    }
+    if(getPosOppositeLowerRight(row, col) != null){
+        return true;
+    }
+    return false;
+}
+
+/**
+ * ゲーム終了を判定する
+ */
+function isGameEnd() {
+    if ($(".square.selected").length == 64) {
+        return true;
+    }
+    return false;
+}
+
+//ゲーム終了メッセージを表示
+function toastEndMessage(message){
+    let countBlack = $("[data-owner=black]").length;
+    let countWhite = $("[data-owner=white]").length;
+
+    let judgeString = 
+            "black:" + countBlack + "<br/>" + "white" + countWhite + "<br/>";
+
+    // メッセージを表示する
+    if (countBlack == countWhite) {
+        toastr.success(message + "<br/>" + judgeString + "Draw");
+    } else if (countBlack < countWhite) {
+        toastr.success(message + "<br/>" + judgeString + "white Wins");
+    } else {
+        toastr.success(message + "<br/>" + judgeString + "black Wins");
+    }
+}
+
+//番手がパスかどうかを判定
+function isPass(){
+    if($(".square.can-select").length == 0){
+        return true;
+    }
+    return false;
 }
